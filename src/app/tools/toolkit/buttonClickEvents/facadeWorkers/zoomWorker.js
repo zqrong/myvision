@@ -163,10 +163,6 @@ function zoomOutObjectsOnImageSelect(previousShapes, previousLabels) {
   });
 }
 
-// explore zoomToPoint
-// option to always highlight
-// need to click twice on polygon for points to be above label
-
 function setNewCanvasDimensions(changeElements) {
   let heightOverflowed = false;
   let widthOverflowed = false;
@@ -220,6 +216,20 @@ function increaseMovePolygonPathOffset() {
   }
 }
 
+function adjustScrollPosition(oldZoom, newZoom) {
+  const { scrollLeft, scrollTop } = zoomOverflowElement;
+  const containerWidth = zoomOverflowElement.clientWidth;
+  const containerHeight = zoomOverflowElement.clientHeight;
+  const centerX = (scrollLeft + containerWidth / 2) / oldZoom;
+  const centerY = (scrollTop + containerHeight / 2) / oldZoom;
+  const newScrollLeft = centerX * newZoom - containerWidth / 2;
+  const newScrollTop = centerY * newZoom - containerHeight / 2;
+  const maxScrollLeft = zoomOverflowElement.scrollWidth - containerWidth;
+  const maxScrollTop = zoomOverflowElement.scrollHeight - containerHeight;
+  zoomOverflowElement.scrollLeft = Math.max(0, Math.min(newScrollLeft, maxScrollLeft));
+  zoomOverflowElement.scrollTop = Math.max(0, Math.min(newScrollTop, maxScrollTop));
+}
+
 function resetCanvasToDefault() {
   enableCanvasOuterMargin();
   currentZoom = 1;
@@ -235,14 +245,33 @@ function resetCanvasToDefault() {
   setZoomInButtonToDefault();
   setZoomOutButtonToDisabled();
   movedPolygonPathOffsetReduced = false;
+  zoomOverflowElement.scrollLeft = 0;
+  zoomOverflowElement.scrollTop = 0;
+}
+
+function zoomIn() {
+  if (currentZoom < 1.0001) removeCanvasOuterMargin();
+  const oldZoom = currentZoom;
+  timesZoomedIn += 1;
+  currentZoom *= 1.2;
+  canvas.setZoom(currentZoom);
+  zoomInObjects();
+  reduceMovePolygonPathOffset();
+  changeCanvas();
+  adjustScrollPosition(oldZoom, currentZoom);
+  setZoomOutButtonToDefault();
+  if (currentZoom >= 99.99999) {
+    setZoomInButtonToDisabled();
+  }
 }
 
 function zoomOut() {
+  const oldZoom = currentZoom;
   if (!stubElement.style.marginTop && imageProperties.scaleX < 1) {
     resetCanvasToDefault();
   } else {
     timesZoomedIn -= 1;
-    currentZoom -= 0.2;
+    currentZoom /= 1.2;
     zoomOutObjects();
     increaseMovePolygonPathOffset();
     if (currentZoom < 1.0001) {
@@ -252,27 +281,17 @@ function zoomOut() {
       resizeAllObjectsDimensionsByDoubleScale(newFileSizeRatio, canvas);
       canvas.setZoom(currentZoom);
       setZoomOutButtonToDisabled();
+      changeCanvas();
+      zoomOverflowElement.scrollLeft = 0;
+      zoomOverflowElement.scrollTop = 0;
     } else if (setNewCanvasDimensions() && imageProperties.scaleX < 1) {
       resetCanvasToDefault();
     } else {
       setZoomInButtonToDefault();
       canvas.setZoom(currentZoom);
+      changeCanvas();
+      adjustScrollPosition(oldZoom, currentZoom);
     }
-  }
-  changeCanvas();
-}
-
-function zoomIn() {
-  if (currentZoom < 1.0001) removeCanvasOuterMargin();
-  timesZoomedIn += 1;
-  currentZoom += 0.2;
-  canvas.setZoom(currentZoom);
-  zoomInObjects();
-  reduceMovePolygonPathOffset();
-  changeCanvas();
-  setZoomOutButtonToDefault();
-  if (currentZoom >= 3.69999) {
-    setZoomInButtonToDisabled();
   }
 }
 
@@ -284,7 +303,6 @@ function calculateReduceShapeSizeFactor() {
   });
 }
 
-// first parameter still required?
 function zoomCanvas(canvasObj, action, windowResize) {
   if (windowResize) {
     canvasProperties = getCanvasProperties();
@@ -294,7 +312,7 @@ function zoomCanvas(canvasObj, action, windowResize) {
     canvasProperties = getCanvasProperties();
     imageProperties = getImageProperties();
     calculateReduceShapeSizeFactor();
-    if (action === 'in' && currentZoom < 3.7) {
+    if (action === 'in' && currentZoom < 100) {
       zoomIn();
     } else if (action === 'out' && currentZoom > 1.0001) {
       zoomOut();
