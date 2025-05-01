@@ -1,6 +1,6 @@
 const labelProperties = {};
 
-let fontSize = 10;
+let fontSize = 12;
 let polygonLabelTop = 0;
 let polygonOffsetLeft = 10;
 let polygonOffsetTop = 12;
@@ -18,7 +18,10 @@ function setZoomOutProperties(fontRatio) {
 function getLabelProps(coordinates, attachedShape) {
   const returnObj = {
     fontSize,
-    fill: 'yellow',
+    fontFamily: 'Arial',
+    fill: 'green',
+    backgroundColor: 'white',
+    fontWeight: 'bold',
     left: coordinates.left,
     top: coordinates.top,
     shapeName: 'label',
