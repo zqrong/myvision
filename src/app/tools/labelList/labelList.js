@@ -11,6 +11,7 @@ import IS_FIREFOX from '../utils/browserType';
 import {
   getShapeById, changeShapeVisibilityById, getShapeVisibilityById,
   highlightShapeFill, defaultShapeFill, changeShapeColorById, changeShapeLabelText,
+  getShapeIdsByLabelText,
 } from '../../canvas/objects/allShapes/allShapes';
 import { removePolygonPoints, isAddingPointsToPolygon } from '../../canvas/objects/polygon/alterPolygon/alterPolygon';
 import {
@@ -35,7 +36,8 @@ import {
 import {
   dimActiveIcon, dimDefaultIcon, switchToActiveIcon, switchToDefaultIcon,
   highlightActiveIcon, highlightDefaultIcon, switchToHighlightedActiveIcon,
-  switchToHighlightedDefaultIcon, switchToHighlightedDefaultVisibilityIcon,
+  switchToHighlightedDefaultIcon,
+  // switchToHighlightedDefaultVisibilityIcon,
 } from './iconHighlightUtils';
 import {
   isVerticalScrollPresent, emptyContentEditableFirefoxBugFix,
@@ -45,7 +47,8 @@ import {
 let isEditingLabel = false;
 let keyDownEventTimeOut = 0;
 let isVisibilitySelected = false;
-let isVisibilityRestored = false;
+// let isVisibilityRestored = false;
+const isVisibilityRestored = false;
 let activeDropdownElements = null;
 let activeLabelTextElement = null;
 let activeLabelId = null;
@@ -138,6 +141,25 @@ function generateLabelVisibilityMarkup(shapeVisibile) {
   `;
 }
 
+function updateVisibilityButtonIcon(visibilityButtonElement, isVisible) {
+  const icons = visibilityButtonElement.querySelectorAll('img');
+  if (isVisible) {
+    // 显示可见图标，隐藏不可见图标
+    icons[0].style.display = ''; // default visibility (svg/visibility-button.svg)
+    icons[1].style.display = 'none'; // highlighted visibility (svg/visibility-button-highlighted.svg)
+    icons[2].style.display = 'none'; // default invisible (svg/invisible-button.svg)
+    icons[3].style.display = 'none'; // highlighted invisible (svg/invisible-button-highlighted.svg)
+  } else {
+    // 显示不可见图标，隐藏可见图标
+    icons[0].style.display = 'none'; // default visibility
+    icons[1].style.display = 'none'; // highlighted visibility
+    icons[2].style.display = ''; // default invisible
+    icons[3].style.display = 'none'; // highlighted invisible
+  }
+  // 可选：更新元素的 ID 以反映新的状态，如果鼠标悬停逻辑依赖这个 ID
+  visibilityButtonElement.id = isVisible ? 'default' : 'highlighted';
+}
+
 // change to label list item click
 function createLabelElementMarkup(labelText, id, backgroundColor, visibility) {
   return `
@@ -173,7 +195,7 @@ function scrollHorizontallyToAppropriateWidth(text) {
   context.font = getDefaultFont(activeLabelTextElement);
   const metrics = context.measureText(text);
   if (isVerticalScrollPresent(labelListOverflowParentElement)
-      && metrics.width > 170 - getScrollbarWidth()) {
+    && metrics.width > 170 - getScrollbarWidth()) {
     labelListOverflowParentElement.scrollLeft = metrics.width - 165 + getScrollbarWidth() / 2;
   } else if (!isVerticalScrollPresent(labelListOverflowParentElement) && metrics.width > 170) {
     labelListOverflowParentElement.scrollLeft = metrics.width - 165;
@@ -197,7 +219,7 @@ function pasteHandlerOnDiv(event) {
   const caretPositionStart = caretPositionEnd - caretOnPaste.highlightRangeOnPaste;
   const preprocessedPastedData = preprocessPastedText(pastedData);
   activeLabelTextElement.innerHTML = activeLabelTextElement.innerHTML.slice(0, caretPositionStart)
-   + preprocessedPastedData + activeLabelTextElement.innerHTML.slice(caretPositionEnd);
+    + preprocessedPastedData + activeLabelTextElement.innerHTML.slice(caretPositionEnd);
   setCaretPositionOnDiv(caretPositionStart + preprocessedPastedData.length,
     activeLabelTextElement, false, scrollHorizontallyToAppropriateWidth);
 }
@@ -351,9 +373,9 @@ function removeFakeBottomBorderOnExistingDropdown() {
 
 function addFakeBottomBorder(activeDropdownElementPosition) {
   if (activeDropdownElements[0].style.borderBottom === 'none') {
-  // the reason why we have a delta here is because activeDropdownElements remembers the height
-  // before the bottom border is removed, hence when getBoundingClientRect is called
-  // the next time, the height presented is smaller
+    // the reason why we have a delta here is because activeDropdownElements remembers the height
+    // before the bottom border is removed, hence when getBoundingClientRect is called
+    // the next time, the height presented is smaller
     if (!newFakeDropdownBottomBorderDeltaGenerated) {
       chromiumFakeDropdownBorderElementTopDelta = originalActiveDropdownHeight
         - activeDropdownElementPosition.height;
@@ -367,7 +389,7 @@ function addFakeBottomBorder(activeDropdownElementPosition) {
   chromiumFakeDrodownBottomBorderElement.style.width = `${dropdownElementWidthInt}px`;
   if (!chromiumFakeDrodownBottomBorderTopDimension) {
     chromiumFakeDrodownBottomBorderTopDimension = activeDropdownElementPosition.height
-    + activeDropdownElementPosition.top + chromiumFakeDropdownBorderElementTopDelta - 0.6;
+      + activeDropdownElementPosition.top + chromiumFakeDropdownBorderElementTopDelta - 0.6;
   }
   chromiumFakeDrodownBottomBorderElement.style.top = `${chromiumFakeDrodownBottomBorderTopDimension}px`;
   originalActiveDropdownHeight = parseInt(activeDropdownElementPosition.height, 10);
@@ -673,7 +695,7 @@ function finishEditingLabelList(event) {
         resetLabelElement();
       }
     } else if (event.target.nodeName === 'CANVAS' || event.target.className === 'toolkit-button-icon'
-        || event.target.className === 'toolkit-button-text' || event.target.id === activeLabelElementId) {
+      || event.target.className === 'toolkit-button-text' || event.target.id === activeLabelElementId) {
       addNewLabelToLabelOptions(activeLabelTextElement.innerHTML);
       stopEditing();
     } else {
@@ -855,24 +877,115 @@ window.mouseLeaveVisibilityBtn = (id, element) => {
   }
 };
 
-window.visibilityBtnClick = (id, element) => {
-  isVisibilityRestored = changeShapeVisibilityById(id);
-  if (getLabelsVisibilityState()) changeLabelVisibilityById(id);
-  changeVisibilityButtonActiveFlagById(id);
-  isVisibilitySelected = true;
-  if (element.id === 'default') {
-    element.id = 'highlighted';
-    if (getRemovingPolygonPointsState()) {
-      setPolygonNotEditableOnClick();
-    } else if (getAddingPolygonPointsState()) {
-      if (isAddingPointsToPolygon()) window.addPoints();
-      addPointsPolygonNotEditable();
-    }
-    switchToHighlightedActiveIcon(element);
-  } else {
-    element.id = 'default';
-    switchToHighlightedDefaultVisibilityIcon(element);
+// window.visibilityBtnClick = (id, element) => {
+//   isVisibilityRestored = changeShapeVisibilityById(id);
+//   if (getLabelsVisibilityState()) changeLabelVisibilityById(id);
+//   changeVisibilityButtonActiveFlagById(id);
+//   isVisibilitySelected = true;
+//   if (element.id === 'default') {
+//     element.id = 'highlighted';
+//     if (getRemovingPolygonPointsState()) {
+//       setPolygonNotEditableOnClick();
+//     } else if (getAddingPolygonPointsState()) {
+//       if (isAddingPointsToPolygon()) window.addPoints();
+//       addPointsPolygonNotEditable();
+//     }
+//     switchToHighlightedActiveIcon(element);
+//   } else {
+//     element.id = 'default';
+//     switchToHighlightedDefaultVisibilityIcon(element);
+//   }
+// };
+
+// TODO
+window.visibilityBtnClick = (id, clickedButtonElement) => {
+  // 无实际作用，避免clickedButtonElement没有被使用
+  clickedButtonElement.toString();
+
+  // 在执行可见性切换前，检查当前是否正在进行多边形绘制或编辑点，如果是，切换到形状编辑模式
+  setToShapeEditModeWhenDrawing();
+
+  // 1. 获取被点击标签的文本内容（名字）
+  const labelTextElement = document.getElementById(`labelText${id}`);
+  const labelText = labelTextElement ? labelTextElement.innerHTML : '';
+
+  if (!labelText) {
+    console.error(`无法找到 ID 为 ${id} 的标签文本`);
+    return; // 如果找不到标签文本，则退出
   }
+
+  // 2. 确定目标可见性状态
+  // 获取被点击标签当前的可见性状态，目标状态是它的反面
+  const currentState = getShapeVisibilityById(id);
+  const targetState = !currentState; // 要切换到的状态 (true 表示可见，false 表示不可见)
+
+  // 3. 获取所有相同名字的形状 ID
+  // 调用 Step 1 中在 allShapes.js 中添加的新函数
+  const matchingShapeIds = getShapeIdsByLabelText(labelText);
+
+  if (matchingShapeIds.length === 0) {
+    console.warn(`没有找到与标签文本 "${labelText}" 匹配的形状 ID。`);
+    return; // 如果没有找到匹配的形状，则退出
+  }
+
+  // 4. 遍历所有匹配的 ID，并切换可见性，更新 UI
+  matchingShapeIds.forEach((matchingId) => {
+    const currentMatchingState = getShapeVisibilityById(matchingId);
+
+    // 只有当当前状态与目标状态不同时才进行切换
+    if (currentMatchingState !== targetState) {
+      // 调用现有的函数来切换形状和标签的可见性
+      // changeShapeVisibilityById(id) 在 allShapes.js 中是切换逻辑
+      // (shapes[id].shapeRef.visible = !shapes[id].shapeRef.visible;)
+      // changeLabelVisibilityById(id) 在 label/label.js 中也可能是切换逻辑
+      // 我们调用它们来达到目标状态
+      changeShapeVisibilityById(matchingId); // 切换形状的可见性
+      if (getLabelsVisibilityState()) {
+        changeLabelVisibilityById(matchingId); // 切换标签的可见性
+      }
+      changeVisibilityButtonActiveFlagById(matchingId); // 更新内部标志（如果需要，这个函数可能在 label/label.js 中）
+
+      // 更新标签列表界面中对应项的可见性按钮图标
+      const matchingLabelElement = document.getElementById(`labelId${matchingId}`);
+      if (matchingLabelElement) {
+        // 找到该标签项中的可见性按钮元素
+        // 使用更精确的选择器确保找到正确的按钮
+        const visibilityButton = matchingLabelElement.querySelector(`#labelId${matchingId} > div[onClick^="visibilityBtnClick"]`);
+        if (visibilityButton) {
+          updateVisibilityButtonIcon(visibilityButton, targetState); // 使用 helper 函数并传入目标状态
+        } else {
+          console.warn(`无法找到 ID 为 ${matchingId} 的标签项的可见性按钮`);
+        }
+      } else {
+        console.warn(`无法找到 ID 为 ${matchingId} 的标签项`);
+      }
+    } else {
+      // 如果当前状态已经等于目标状态，确保 UI 是正确的
+      const matchingLabelElement = document.getElementById(`labelId${matchingId}`);
+      if (matchingLabelElement) {
+        const visibilityButton = matchingLabelElement.querySelector(`#labelId${matchingId} > div[onClick^="visibilityBtnClick"]`);
+        if (visibilityButton) {
+          updateVisibilityButtonIcon(visibilityButton, targetState);
+        }
+      }
+    }
+  });
+
+  // 移除旧的与单项可见性逻辑相关的状态变量和形状选择逻辑
+  // isVisibilitySelected 和 isVisibilityRestored 似乎是为旧的点击流程设计的，
+  // 在一键切换所有同名标签可见性时不再需要。
+  // 移除或注释掉这些行的代码：
+  // isVisibilitySelected = true;
+  // if (element.id === 'default') { ... } else { ... }
+  // if (isVisibilityRestored) { ... } else { ... }
+  // isVisibilitySelected = false;
+
+  // 如果点击可见性按钮不应该改变当前选中的形状，那么与形状选择/取消选择相关的逻辑
+  // (如 selectShape(), removePolygonPoints(), setShapeToInvisible(),
+  // programaticallyDeselectBoundingBox() 等)
+  // 也应该从 visibilityBtnClick 中移除，或者确保它们只在 labelBtnClick 中被触发。
+  // 在上面的代码中，我们只保留了 setToShapeEditModeWhenDrawing()，其他形状操作（如 selectShape()）已移除。
+  // 请根据你的应用需求确认这里的行为。
 };
 
 window.mouseEnterLabelEditBtn = (element) => {

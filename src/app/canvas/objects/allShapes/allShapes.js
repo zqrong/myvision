@@ -37,6 +37,17 @@ function getAllExistingShapes() {
   return shapes;
 }
 
+function getShapeIdsByLabelText(labelText) {
+  const matchingIds = [];
+  Object.keys(shapes).forEach((shapeId) => {
+    const shape = shapes[shapeId];
+    if (shape && shape.shapeRef && shape.shapeRef.shapeLabelText === labelText) {
+      matchingIds.push(shapeId);
+    }
+  });
+  return matchingIds;
+}
+
 function removeAllShapeRefs() {
   shapes = {};
 }
@@ -113,4 +124,5 @@ export {
   removeFillForAllShapes, getShapeVisibilityById, addShapeForInvisibleImage,
   getShapeById, getShapeColorById, changeShapeColorById, changeShapeLabelText,
   addShape, addExistingShape, removeAllShapeRefs, assignCanvasForShapeFillManipulation,
+  getShapeIdsByLabelText,
 };
